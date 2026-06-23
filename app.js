@@ -110,7 +110,7 @@ function addNewStock() {
         return;
     }
     
-    // 自動判定並補齊 Yahoo 財經所認得的台股上市櫃格式 (.TW)
+    // 補齊 Yahoo 財經所需的台股上市櫃格式 (.TW)
     if (market === 'TW' && /^\d+$/.test(symbol)) {
         symbol = symbol + '.TW';
     }
@@ -140,10 +140,10 @@ function saveAndRefresh() {
     renderTables();
 }
 
-// 💡 終極 Google 翻譯網域破牆機制 (100% 繞過公司一切黑名單防火牆阻擋)
+// 🎯 真・純前端即時直連版：移除所有中轉網址，在外掛啟動下直攻 Yahoo 核心
 async function updatePricesViaAPI() {
     const statusText = document.getElementById('update-status');
-    statusText.innerText = '正在向 Google 安全安全網域索取全球股市報價...';
+    statusText.innerText = '正在向 Yahoo 即時數據伺服器下載最新報價...';
     
     const twSymbols = stockData.TW.map(s => s.symbol);
     const usSymbols = stockData.US.map(s => s.symbol);
@@ -155,33 +155,35 @@ async function updatePricesViaAPI() {
     }
     
     try {
-        let updateCount = 0;
+        const symbolsQuery = allSymbols.join(',');
+        // ❌ 絕不使用任何 Proxy 中轉站，100% 直連 Yahoo 原生開盤跳動核心
+        const targetUrl = `https://yahoo.com{encodeURIComponent(symbolsQuery)}`;
         
-        // 逐一利用 Google 翻譯的安全接口幫我們代抓 Yahoo 的報價
-        for (let symbol of allSymbols) {
-            const yahooUrl = `https://yahoo.com{encodeURIComponent(symbol)}`;
-            // 偽裝成 Google 翻譯的跨網域請求，這也是 Chrome 瀏覽器外掛大顯身手的終極管道
-            const googleTranslateProxy = `https://google.com{encodeURIComponent(yahooUrl)}`;
+        const response = await fetch(targetUrl);
+        if (!response.ok) throw new Error(`Yahoo 伺服器拒絕 (錯誤碼: ${response.status})`);
+        
+        const data = await response.json();
+        
+        if (data && data.quoteResponse && data.quoteResponse.result) {
+            const results = data.quoteResponse.result;
+            let updateCount = 0;
             
-            // 透過公司絕對不敢封鎖的 google.com 發送請求
-            const response = await fetch(`https://allorigins.win{encodeURIComponent(yahooUrl)}`);
-            const jsonWrapper = await response.json();
-            const data = JSON.parse(jsonWrapper.contents);
-            
-            if (data && data.quoteResponse && data.quoteResponse.result && data.quoteResponse.result[0]) {
-                const stockInfo = data.quoteResponse.result[0];
-                const price = stockInfo.regularMarketPrice;
+            results.forEach(stockInfo => {
+                const symbol = stockInfo.symbol;
+                const price = stockInfo.regularMarketPrice; // 抓取最新盤中即時成交價
                 
                 stockData.TW.forEach(s => { if (s.symbol === symbol) { s.currentPrice = price; updateCount++; } });
                 stockData.US.forEach(s => { if (s.symbol === symbol) { s.currentPrice = price; updateCount++; } });
-            }
+            });
+            
+            saveAndRefresh();
+            statusText.innerText = `✅ 盤中即時股價更新成功！已自動同步 ${updateCount} 檔最新市價。時間：${new Date().toLocaleTimeString()}`;
+        } else {
+            statusText.innerText = '❌ 解析失敗：Yahoo 回傳資料格式異常。';
         }
-        
-        saveAndRefresh();
-        statusText.innerText = `✅ 全球股市即時更新成功！已成功穿透限制同步 ${updateCount} 檔最新市價。時間：${new Date().toLocaleTimeString()}`;
         
     } catch (error) {
         console.error(error);
-        statusText.innerText = `❌ 更新失敗：公司網路限制極為嚴格，已重置防護政策（詳細原因：${error.message}）`;
+        statusText.innerText = `❌ 更新失敗：請點擊瀏覽器右上角，確認 CORS Unblock 外掛已切換到 ON (綠燈)。`;
     }
 }
