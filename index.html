@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票損益追蹤工具</title>
+    <!-- 引入外觀樣式檔 -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <h1>📈 股票持股與損益追蹤工具</h1>
+        
+        <!-- 操作控制區 -->
+        <div class="control-panel">
+            <button id="btn-api-update" class="btn btn-update">🔄 串接 API 更新現價</button>
+            <span id="update-status" class="status-text">點擊按鈕更新最新股價</span>
+        </div>
+
+        <!-- 新增持股表單 -->
+        <div class="form-section">
+            <h3>➕ 新增持股紀錄</h3>
+            <div class="form-group">
+                <select id="input-market">
+                    <option value="TW">台股 (TWD)</option>
+                    <option value="US">美股 (USD)</option>
+                </select>
+                <input type="text" id="input-symbol" placeholder="標的代號 (如: 0050, AAPL)">
+                <input type="text" id="input-name" placeholder="標的名稱 (選填)">
+                <input type="number" id="input-shares" placeholder="持股數" step="any">
+                <input type="number" id="input-cost" placeholder="購入單價" step="any">
+                <button id="btn-add" class="btn btn-add">加入清單</button>
+            </div>
+        </div>
+
+        <!-- 分頁切換按鈕 -->
+        <div class="tabs">
+            <button class="tab tab-tw active" onclick="switchMarket('TW')">台股投資組合 (TWD)</button>
+            <button class="tab tab-us" onclick="switchMarket('US')">美股投資組合 (USD)</button>
+        </div>
+
+        <!-- 台股區塊 -->
+        <div id="section-TW" class="market-section active">
+            <div class="table-container">
+                <table id="table-TW">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;">標的代號 / 名稱</th>
+                            <th>持股數</th>
+                            <th>購入單價</th>
+                            <th>投入成本</th>
+                            <th>目前現價</th>
+                            <th>當前市值</th>
+                            <th>預估損益</th>
+                            <th>報酬率</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-TW">
+                        <!-- 資料由 JavaScript 動態產生 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 美股區塊 -->
+        <div id="section-US" class="market-section">
+            <div class="table-container">
+                <table id="table-US">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;">標的代號 / 名稱</th>
+                            <th>持股數</th>
+                            <th>購入單價</th>
+                            <th>投入成本</th>
+                            <th>目前現價</th>
+                            <th>當前市值</th>
+                            <th>預估損益</th>
+                            <th>報酬率</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-US">
+                        <!-- 資料由 JavaScript 動態產生 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入功能核心檔 -->
+    <script src="app.js"></script>
+</body>
+</html>
