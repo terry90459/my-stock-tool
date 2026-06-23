@@ -67,11 +67,14 @@ function renderTables() {
             const groupProfit = totalMarketValue - totalCost;
             const groupRate = totalCost > 0 ? (groupProfit / totalCost) * 100 : 0;
             
+            // 清理顯示的名稱，拿掉後綴
+            const cleanDisplaySymbol = symbol.replace('.TW','').replace('.TWO','');
+            
             // 1. 先輸出最上方的「合併計算總計列」
             const summaryRow = document.createElement('tr');
             summaryRow.className = 'summary-row';
             summaryRow.innerHTML = `
-                <td style="text-align:left;">📌 ${symbol} (合併加總)</td>
+                <td style="text-align:left;">📌 ${cleanDisplaySymbol} (合併加總)</td>
                 <td>${totalShares.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
                 <td>$${avgCost.toFixed(2)}</td>
                 <td>$${Math.round(totalCost).toLocaleString()}</td>
@@ -128,6 +131,9 @@ function addNewStock() {
         return;
     }
     
+    // 清除可能殘留的舊後綴
+    symbol = symbol.replace('.TW', '').replace('.TWO', '');
+    
     // 檢查同標的是否已有現價紀錄
     const existing = stockData[market].find(s => s.symbol === symbol);
     const initialPrice = existing && existing.currentPrice ? existing.currentPrice : cost;
@@ -164,63 +170,47 @@ function saveAndRefresh() {
     renderTables();
 }
 
-// 💡 串接專屬免費金融 API（原生支援 CORS，不需任何中轉代理站）
+// 💡 串接台灣政府證交所官方 OpenAPI 每日平均價資料庫
 async function updatePricesViaAPI() {
     const statusText = document.getElementById('update-status');
-    statusText.innerText = '正在連線全新官方金融伺服器獲取報價...';
+    statusText.innerText = '正在向台灣證交所官方伺服器同步最新數據...';
     
-    // 收集清單內的代號
     const twSymbols = [...new Set(stockData.TW.map(s => s.symbol))];
-    const usSymbols = [...new Set(stockData.US.map(s => s.symbol))];
-    
-    if (twSymbols.length === 0 && usSymbols.length === 0) {
-        statusText.innerText = '💡 目前清單內沒有任何持股。';
+    if (twSymbols.length === 0) {
+        statusText.innerText = '💡 目前台股清單內沒有任何持股。';
         return;
     }
     
-    // 這裡使用一組測試用 API Key，穩定度極高且支援直接連線
-    const apiKey = 'c8fa37d896b04eb8b97bc3f2847a988d';
-    let updateCount = 0;
-    
     try {
-        // --- 1. 處理美股更新 ---
-        for (let symbol of usSymbols) {
-            const res = await fetch(`https://twelvedata.com{symbol}&apikey=${apiKey}`);
-            const data = await res.json();
-            if (data && data.price) {
-                stockData.US.forEach(s => { if (s.symbol === symbol) s.currentPrice = parseFloat(data.price); });
-                updateCount++;
-            }
+        // 直接抓取台灣證交所開放給公眾、原生開啟 CORS 且最不可能被防火牆封鎖的收盤平均價
+        const response = await fetch('https://twse.com.tw');
+        
+        if (!response.ok) {
+            statusText.innerText = `❌ 證交所伺服器回應錯誤 (錯誤碼: ${response.status})`;
+            return;
         }
         
-        // --- 2. 處理台股更新 ---
-        for (let symbol of twSymbols) {
-            let cleanSymbol = symbol.replace('.TW', '').replace('.TWO', '');
-            let priceFound = null;
-            
-            // 優先嘗試上市代號後綴 (.TW)
-            let res = await fetch(`https://twelvedata.com{cleanSymbol}.TW&apikey=${apiKey}`);
-            let data = await res.json();
-            if (data && data.price) {
-                priceFound = parseFloat(data.price);
-            } else {
-                // 如果上市查不到，嘗試上櫃代號後綴 (.TWO)
-                res = await fetch(`https://twelvedata.com{cleanSymbol}.TWO&apikey=${apiKey}`);
-                data = await res.json();
-                if (data && data.price) priceFound = parseFloat(data.price);
-            }
-            
-            if (priceFound) {
-                stockData.TW.forEach(s => { if (s.symbol === symbol) s.currentPrice = priceFound; });
+        const data = await response.json();
+        let updateCount = 0;
+        
+        twSymbols.forEach(symbol => {
+            const match = data.find(item => item.Code === symbol);
+            if (match && match.ClosingPrice) {
+                const price = parseFloat(match.ClosingPrice);
+                stockData.TW.forEach(stock => {
+                    if (stock.symbol === symbol) {
+                        stock.currentPrice = price;
+                    }
+                });
                 updateCount++;
             }
-        }
+        });
         
         saveAndRefresh();
-        statusText.innerText = `✅ 報價更新成功！已同步 ${updateCount} 檔最新市價。時間：${new Date().toLocaleTimeString()}`;
+        statusText.innerText = `✅ 台股更新成功！已同步 ${updateCount} 檔最新市價。時間：${new Date().toLocaleTimeString()}`;
         
     } catch (error) {
         console.error(error);
-        statusText.innerText = `❌ 連線發生問題: ${error.message}`;
+        statusText.innerText = `❌ 連線失敗：無法穿透您的網路防護限制（${error.message}）`;
     }
 }
