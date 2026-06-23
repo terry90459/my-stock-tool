@@ -181,7 +181,7 @@ async function updatePricesViaAPI() {
     try {
         // 使用 GitHub 上開源社群每日自動備份的證交所最新 JSON 檔案
         // 這個網域（://githubusercontent.com）天生完全開放 CORS，任何人、任何網頁都能直接下載
-        const url = 'https://://githubusercontent.com/w96k/twse-openapi/main/data/exchangeReport/STOCK_DAY_AVG_ALL.json';
+        const url = 'https://githubusercontent.com/w96k/twse-openapi/main/data/exchangeReport/STOCK_DAY_AVG_ALL.json';
         
         const response = await fetch(url);
         if (!response.ok) throw new Error("開源伺服器無回應");
